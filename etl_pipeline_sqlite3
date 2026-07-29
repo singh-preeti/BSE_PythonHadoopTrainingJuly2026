@@ -181,8 +181,36 @@ def show_data():
     connection.close()
 
 
-if __name__ == '__main__':
-    extract_stock_data("stock_data.csv")
-    transform("stock_data.csv")
-    load_transformed_records("transformed_records.csv")
-    show_data()
+# -----------------------------
+# MAIN PIPELINE
+# -----------------------------
+
+
+if __name__ == "__main__":
+
+
+    print("ETL Pipeline Started\n")
+
+
+    # Extract
+
+    records = extract_stock_data(
+        "stock_data.csv"
+    )
+
+
+    # Transform
+
+    transformed_records = transform(
+        records
+    )
+
+
+    # Load
+
+    load_transformed_records(
+        transformed_records
+    )
+
+
+    print("\nETL Pipeline Completed")
