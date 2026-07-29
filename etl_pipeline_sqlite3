@@ -1,0 +1,188 @@
+import csv
+import pandas as pd
+import sqlite3
+
+
+# -----------------------------
+# EXTRACT
+# -----------------------------
+
+def extract_stock_data(file_name):
+
+    records = []
+
+    with open(file_name, newline="") as file:
+
+        reader = csv.DictReader(file)
+
+        for row in reader:
+            records.append(row)
+
+    print("Extraction Completed")
+    print("Number of records:", len(records))
+
+    return records
+
+
+
+# -----------------------------
+# TRANSFORMATION
+# -----------------------------
+
+def transform(records):
+
+    transformed_records = []
+
+
+    for stock in records:
+
+        open_price = float(stock["open_price"])
+
+        close_price = float(stock["close_price"])
+
+        volume = int(stock["volume"])
+
+
+
+        # 1. Calculate price movement
+
+        price_change = close_price - open_price
+
+
+
+        # 2. Calculate return percentage
+
+        return_percentage = (
+            price_change / open_price
+        ) * 100
+
+
+
+        # 3. Volume classification
+
+        if volume > 100000:
+            category = "HIGH"
+
+        else:
+            category = "NORMAL"
+
+
+
+        # Adding new columns
+
+        stock["price_change"] = round(
+            price_change,2
+        )
+
+
+        stock["return_percentage"] = round(
+            return_percentage,2
+        )
+
+
+        stock["volume_category"] = category
+
+
+
+        transformed_records.append(stock)
+
+
+
+    print("Transformation Completed")
+
+
+    return transformed_records
+
+
+# Extract data
+records = extract_stock_data(
+    "stock_data.csv"
+)
+
+
+# Transform data
+transformed_records = transform(
+    records
+)
+
+
+print(transformed_records)
+
+#Load the transformed file
+# Sqlite data store
+
+def load_transformed_records(records):
+    connection = sqlite3.connect("stock.db")
+
+    cursor = connection.cursor()
+
+    cursor.execute("""
+
+       CREATE TABLE IF NOT EXISTS stocks(
+
+           trade_id INTEGER,
+           company TEXT,
+           sector TEXT,
+           trade_date TEXT,
+           open_price REAL,
+           close_price REAL,
+           volume INTEGER,
+           price_change REAL,
+           return_percentage REAL,
+           volume_category TEXT
+
+       )
+
+       """)
+
+    for stock in records:
+        cursor.execute("""
+
+            INSERT INTO stocks VALUES
+            (?,?,?,?,?,?,?,?,?,?)
+
+            """,
+
+                       (
+
+                           stock["trade_id"],
+                           stock["company"],
+                           stock["sector"],
+                           stock["trade_date"],
+                           stock["open_price"],
+                           stock["close_price"],
+                           stock["volume"],
+                           stock["price_change"],
+                           stock["return_percentage"],
+                           stock["volume_category"]
+
+                       ))
+
+    connection.commit()
+
+    connection.close()
+
+    print("Load Completed")
+
+load_transformed_records(transformed_records)
+
+def show_data():
+    connection = sqlite3.connect("stock.db")
+    cursor = connection.cursor()
+
+    cursor.execute("SELECT * FROM stocks LIMIT 10")
+
+    rows = cursor.fetchall()
+    print("\n Stock Data after transformation!")
+
+    for row in rows:
+        print(row)
+
+    connection.close()
+
+
+if __name__ == '__main__':
+    extract_stock_data("stock_data.csv")
+    transform("stock_data.csv")
+    load_transformed_records("transformed_records.csv")
+    show_data()
