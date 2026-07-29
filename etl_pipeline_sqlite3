@@ -1,6 +1,6 @@
 import csv
 import pandas as pd
-import sqlite3
+import mysql.connector
 
 
 # -----------------------------
@@ -8,11 +8,9 @@ import sqlite3
 # -----------------------------
 
 def extract_stock_data(file_name):
-
     records = []
 
     with open(file_name, newline="") as file:
-
         reader = csv.DictReader(file)
 
         for row in reader:
@@ -24,15 +22,12 @@ def extract_stock_data(file_name):
     return records
 
 
-
 # -----------------------------
 # TRANSFORMATION
 # -----------------------------
 
 def transform(records):
-
     transformed_records = []
-
 
     for stock in records:
 
@@ -42,23 +37,17 @@ def transform(records):
 
         volume = int(stock["volume"])
 
-
-
-        # 1. Calculate price movement
+        # Price movement
 
         price_change = close_price - open_price
 
-
-
-        # 2. Calculate return percentage
+        # Return percentage
 
         return_percentage = (
-            price_change / open_price
-        ) * 100
+                                    price_change / open_price
+                            ) * 100
 
-
-
-        # 3. Volume classification
+        # Volume classification
 
         if volume > 100000:
             category = "HIGH"
@@ -66,131 +55,140 @@ def transform(records):
         else:
             category = "NORMAL"
 
-
-
-        # Adding new columns
-
         stock["price_change"] = round(
-            price_change,2
+            price_change, 2
         )
-
 
         stock["return_percentage"] = round(
-            return_percentage,2
+            return_percentage, 2
         )
-
 
         stock["volume_category"] = category
 
-
-
         transformed_records.append(stock)
 
-
-
     print("Transformation Completed")
-
 
     return transformed_records
 
 
-# Extract data
-records = extract_stock_data(
-    "stock_data.csv"
-)
+# -----------------------------
+# MYSQL CONNECTION
+# -----------------------------
+
+def get_connection():
+    connection = mysql.connector.connect(
+
+        host="localhost",
+        user="root",
+        password="mysql",
+        database="bse_db"
+
+    )
+
+    return connection
 
 
-# Transform data
-transformed_records = transform(
-    records
-)
-
-
-print(transformed_records)
-
-#Load the transformed file
-# Sqlite data store
+# -----------------------------
+# LOAD INTO MYSQL
+# -----------------------------
 
 def load_transformed_records(records):
-    connection = sqlite3.connect("stock.db")
+    connection = get_connection()
 
     cursor = connection.cursor()
 
+    # Create table
+
     cursor.execute("""
 
-       CREATE TABLE IF NOT EXISTS stocks(
+    CREATE TABLE IF NOT EXISTS stocks(
 
-           trade_id INTEGER,
-           company TEXT,
-           sector TEXT,
-           trade_date TEXT,
-           open_price REAL,
-           close_price REAL,
-           volume INTEGER,
-           price_change REAL,
-           return_percentage REAL,
-           volume_category TEXT
+        trade_id INT,
+        company VARCHAR(100),
+        sector VARCHAR(100),
+        trade_date DATE,
+        open_price FLOAT,
+        close_price FLOAT,
+        volume BIGINT,
+        price_change FLOAT,
+        return_percentage FLOAT,
+        volume_category VARCHAR(20)
 
-       )
+    )
 
-       """)
+    """)
+
+    insert_query = """
+
+    INSERT INTO stocks VALUES
+    (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+
+    """
 
     for stock in records:
-        cursor.execute("""
+        cursor.execute(
 
-            INSERT INTO stocks VALUES
-            (?,?,?,?,?,?,?,?,?,?)
+            insert_query,
 
-            """,
+            (
 
-                       (
+                stock["trade_id"],
+                stock["company"],
+                stock["sector"],
+                stock["trade_date"],
+                stock["open_price"],
+                stock["close_price"],
+                stock["volume"],
+                stock["price_change"],
+                stock["return_percentage"],
+                stock["volume_category"]
 
-                           stock["trade_id"],
-                           stock["company"],
-                           stock["sector"],
-                           stock["trade_date"],
-                           stock["open_price"],
-                           stock["close_price"],
-                           stock["volume"],
-                           stock["price_change"],
-                           stock["return_percentage"],
-                           stock["volume_category"]
+            )
 
-                       ))
+        )
 
     connection.commit()
+
+    cursor.close()
 
     connection.close()
 
     print("Load Completed")
 
-load_transformed_records(transformed_records)
+
+# -----------------------------
+# READ DATA FROM MYSQL
+# -----------------------------
 
 def show_data():
-    connection = sqlite3.connect("stock.db")
+    connection = get_connection()
+
     cursor = connection.cursor()
 
-    cursor.execute("SELECT * FROM stocks LIMIT 10")
+    cursor.execute(
+        "SELECT * FROM stocks LIMIT 10"
+    )
 
     rows = cursor.fetchall()
-    print("\n Stock Data after transformation!")
+
+    print("\nStock Data After Transformation\n")
 
     for row in rows:
         print(row)
+
+    cursor.close()
 
     connection.close()
 
 
 # -----------------------------
-# MAIN PIPELINE
+# MAIN ETL PIPELINE
 # -----------------------------
 
 
 if __name__ == "__main__":
-
-
     print("ETL Pipeline Started\n")
-
 
     # Extract
 
@@ -198,13 +196,13 @@ if __name__ == "__main__":
         "stock_data.csv"
     )
 
-
     # Transform
 
     transformed_records = transform(
         records
     )
 
+    print(transformed_records)
 
     # Load
 
@@ -212,5 +210,8 @@ if __name__ == "__main__":
         transformed_records
     )
 
+    # Verify Data
+
+    show_data()
 
     print("\nETL Pipeline Completed")
