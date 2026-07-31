@@ -1,0 +1,616 @@
+Production-Grade Python Pipelines
+Real-Time Capital Gain Processing System (BSE)
+
+Business Scenario
+Imagine you are developing a Production-Grade Capital Gain Processing System for the Bombay Stock Exchange (BSE). Every trading day, millions of transactions are executed across multiple exchanges and brokers. At the end of the trading day, these transactions must be processed to accurately calculate investors' capital gains for taxation and reporting purposes.
+The system is responsible for processing data received from multiple sources every night and generating accurate tax reports before the next business day.
+Data Sources
+The Capital Gain Processing System receives data from multiple upstream systems, including:
+•	Trading Engine 
+•	Clearing Corporation 
+•	Depository (CDSL / NSDL) 
+•	Corporate Actions Team 
+•	Mutual Fund Platforms 
+•	Bonus / Split Processing Systems
+Daily Processing Volume
+A production-grade Capital Gain Processing System is designed to handle extremely large datasets.
+Typical daily workload includes:
+•	40–50 Million Trade Records 
+•	5–10 GB Trade Files 
+•	Thousands of Securities 
+•	Millions of Investor Accounts 
+The entire processing pipeline must complete successfully within the available overnight processing window.
+Business Objective
+The primary objective of the system is to generate accurate and compliant outputs, including:
+•	FIFO Holdings 
+•	Short-Term Capital Gain (STCG) 
+•	Long-Term Capital Gain (LTCG) 
+•	Tax Reports 
+•	Investor Statements 
+The processing must be reliable, scalable, fault tolerant, and capable of completing without failure.
+Production Pipeline Overview
+Trade Files
+      │
+      ▼
+Validation
+      │
+      ▼
+Corporate Action Adjustment
+      │
+      ▼
+FIFO Matching
+      │
+      ▼
+Capital Gain Calculation
+      │
+      ▼
+Tax Classification
+      │
+      ▼
+Database Loading
+      │
+      ▼
+Investor Reports
+Each processing stage performs a specific business function and operates independently, enabling easier maintenance, testing, and scalability.
+1. Modular Pipeline Architecture
+Business Problem
+Many beginners develop data processing applications by placing the entire logic inside a single Python file.
+read_file()
+
+clean_data()
+
+calculate_fifo()
+
+calculate_tax()
+
+save_to_database()
+While this approach may work for small datasets (for example, 100 records), it becomes difficult to maintain and scale when processing 5 crore (50 million) trade records.
+Production Architecture
+Enterprise systems divide responsibilities into separate modules.
+capital_gain_pipeline/
+
+│
+├── config/
+│      config.yaml
+│
+├── ingestion/
+│      trade_loader.py
+│      holdings_loader.py
+│      corporate_action_loader.py
+│
+├── validation/
+│      validator.py
+│
+├── transformation/
+│      fifo_engine.py
+│      adjustment_engine.py
+│
+├── taxation/
+│      capital_gain.py
+│
+├── loading/
+│      mysql_loader.py
+│
+├── logger/
+│      logger.py
+│
+├── retry/
+│      retry.py
+│
+└── main.py
+Each module is responsible for a single business function.
+Real-Time BSE Processing Flow
+Trade File
+      │
+      ▼
+Validation
+      │
+      ▼
+Corporate Action Adjustment
+      │
+      ▼
+FIFO Matching
+      │
+      ▼
+Capital Gain Calculation
+      │
+      ▼
+Tax Classification
+      │
+      ▼
+Database
+      │
+      ▼
+Reports
+Every block operates independently.
+For example, if tax regulations change in the future, only the taxation module requires modification.
+taxation/
+    capital_gain.py
+The remaining application continues to function without changes.
+Why Modular Architecture?
+Consider a future scenario where Budget 2027 revises the Long-Term Capital Gain (LTCG) tax rate from 12.5% to 15%.
+Without modular architecture:
+•	Multiple files require modification. 
+•	Regression risk increases. 
+•	Testing effort becomes extensive. 
+With modular architecture:
+Only
+taxation/capital_gain.py
+requires updates.
+The remainder of the application remains unchanged.
+This is how enterprise-scale financial systems are designed and maintained.
+2. Configuration-Driven Ingestion
+Business Problem
+BSE receives trade files from multiple brokerage firms.
+Examples include:
+•	Zerodha 
+•	Upstox 
+•	ICICI Direct 
+•	HDFC Securities 
+•	Kotak Securities 
+Each broker follows its own file format.
+Example
+Zerodha
+TradeDate
+ISIN
+Qty
+Price
+ICICI
+Date
+SecurityCode
+Quantity
+Rate
+Modifying application code for every new broker is neither scalable nor maintainable.
+Production Solution
+A centralized configuration file maps broker-specific column names.
+config.yaml
+
+zerodha:
+
+ trade_date: TradeDate
+
+ quantity: Qty
+
+ price: Price
+
+ isin: ISIN
+
+icici:
+
+ trade_date: Date
+
+ quantity: Quantity
+
+ price: Rate
+
+ isin: SecurityCode
+The ingestion engine reads the configuration and automatically maps the incoming file structure.
+Benefits
+When a new broker joins the exchange:
+No application code changes are required.
+Only the configuration file is updated.
+For example:
+angel:
+
+ quantity: QTY
+
+ price: TRADE_PRICE
+The pipeline immediately supports the new broker format without requiring deployment or code modification.
+This is known as Configuration-Driven Design, a common practice in enterprise financial systems.
+3. Parallel Ingestion Using Multiprocessing
+Business Scenario
+Daily files received by BSE may include:
+•	Trade File – 15 GB 
+•	Corporate Action File – 2 GB 
+•	Dividend File – 1 GB 
+•	Mutual Fund File – 4 GB 
+•	Broker Files – 20 GB 
+Sequential Processing
+Trade
+      │
+Corporate
+      │
+Dividend
+      │
+Mutual Fund
+      │
+Broker
+Approximate processing time:
+40 Minutes
+Parallel Processing
+Modern production systems distribute processing across multiple CPU cores.
+CPU 1 → Trade
+
+CPU 2 → Corporate
+
+CPU 3 → Dividend
+
+CPU 4 → Mutual Fund
+
+CPU 5 → Broker
+All files are processed simultaneously.
+Approximate processing time:
+40 Minutes → 9 Minutes
+Real Production Example
+Pool(8)
+
+↓
+
+8 CPU Cores
+
+↓
+
+8 Parallel Loaders
+Parallel processing significantly improves throughput and is widely used across stock exchanges, banks, and financial institutions.
+4. Error Handling and Retry Mechanism
+Business Scenario
+While downloading today's trade file, the network connection is temporarily interrupted.
+Instead of terminating the application immediately, production systems automatically retry the failed operation.
+Attempt 1
+
+Failed
+
+↓
+
+Attempt 2
+
+Failed
+
+↓
+
+Attempt 3
+
+Success
+The failure is recovered without manual intervention.
+
+Database Connectivity Scenario
+Temporary database outages should not terminate the entire overnight processing pipeline.
+Instead, the application performs retries using Exponential Backoff.
+Retry after
+
+5 Seconds
+
+↓
+
+10 Seconds
+
+↓
+
+20 Seconds
+Real Banking Example
+MySQL Connection Lost
+
+↓
+
+Retry 5 Times
+
+↓
+
+Reconnect
+
+↓
+
+Continue Processing
+Without an automated retry mechanism, an entire night's processing could fail because of a short-lived network interruption.
+5. Unit Testing Ingestion Logic
+Production systems validate business rules before processing begins.
+Example:
+assert validate_quantity(100) => pass
+
+assert  validate_quantity(-100) => fail
+
+assert  not  validate_quantity(-100) => passes
+
+Negative quantities are rejected.
+Another validation example:
+Trade Date
+
+2026-15-99	
+Invalid date.
+The record is rejected before entering the processing pipeline.
+Real BSE Validation Scenarios
+Production systems execute thousands of automated validation checks.
+Examples include:
+•	Duplicate Trade ID 
+•	Negative Price 
+•	Quantity Zero 
+•	Invalid ISIN 
+•	Invalid Settlement Date 
+•	Future Trade Date 
+•	Missing PAN 
+•	Invalid Investor ID 
+Example
+Input
+Trade ID
+
+1001
+
+1001
+
+1002
+Expected Result
+Duplicate Trade Detected
+
+Second Trade Rejected
+Incorrect capital gain calculations are prevented before processing begins.
+6. Coding Standards & Deployment Considerations
+Enterprise applications are evaluated not only on correctness but also on maintainability, readability, and operational support.
+Calculator.py
+  Calc_addition(num1,num2):
+   Result_of_addition = num1  + num2
+Poor Coding Practice
+a = 10
+
+b = 20
+
+c = a + b
+Production Coding Practice
+purchase_price = 1000
+
+sale_price = 1200
+
+capital_gain = sale_price - purchase_price
+Business intent becomes immediately understandable.
+
+Logging Standards
+Avoid using:
+print("Done")
+Instead:
+logger.info("Trade file processed successfully")
+Example Log Entry
+2026-07-31 22:15:10
+
+INFO
+
+Trade File Loaded
+
+Records
+
+15,623,812
+Example Error Log
+ERROR
+
+Trade ID
+
+45872191
+
+Reason
+
+Invalid ISIN
+Comprehensive logging enables Operations and Support teams to quickly investigate production issues.
+Deployment Considerations
+Every night, settlement files are received from the exchange.
+A scheduler such as Cron, Apache Airflow, or an enterprise scheduling solution automatically triggers the processing pipeline.
+11:30 PM
+
+↓
+
+Read Trade Files
+
+↓
+
+Validate
+
+↓
+
+FIFO
+
+↓
+
+Capital Gain
+
+↓
+
+Tax
+
+↓
+
+Database
+
+↓
+
+Generate Reports
+
+↓
+
+Email Completion Status
+
+↓
+
+Archive Files
+If any processing stage fails, the Operations Team receives an alert containing the failed step and the associated error details.
+
+End-to-End Production Workflow
+                     Broker Trade Files
+                             │
+                             ▼
+              Configuration-Based Loader
+                             │
+                             ▼
+              Schema & Business Validation
+                             │
+                             ▼
+          Parallel Ingestion (Multiple CPUs)
+                             │
+                             ▼
+        Corporate Action Adjustments
+       (Bonus, Split, Merger, Dividend)
+                             │
+                             ▼
+              FIFO Cost Basis Engine
+                             │
+                             ▼
+       STCG / LTCG Capital Gain Calculation
+                             │
+                             ▼
+          Tax Rule & Exemption Engine
+                             │
+                             ▼
+              Load into MySQL / Oracle
+                             │
+                             ▼
+         Investor Statements & Tax Reports
+                             │
+                             ▼
+          Logging, Monitoring & Notifications
+Key Takeaways
+•	Modular Pipeline Architecture improves maintainability, scalability, and ease of enhancement. 
+•	Configuration-Driven Ingestion enables onboarding of new brokers without modifying application code. 
+•	Parallel Ingestion using Multiprocessing significantly reduces processing time for large financial datasets. 
+•	Error Handling and Retry Mechanisms improve resilience by recovering automatically from transient failures. 
+•	Comprehensive Unit Testing ensures data quality and prevents incorrect capital gain calculations. 
+•	Coding Standards, Logging, and Deployment Practices enhance readability, operational support, and production stability. 
+This architecture represents the foundational design principles used in enterprise-grade capital gain processing systems, enabling stock exchanges and financial institutions to process millions of transactions reliably, accurately, and within strict overnight processing windows.
+
+
+
+1. Single Processing Pipeline (Sequential)
+Files are processed one after another.
+# single_processing.py
+
+import time
+
+files = ["trade_day1.csv", "trade_day2.csv", "trade_day3.csv"]
+
+
+def process_file(file):
+    print(f"Reading {file}...")
+    time.sleep(2)          # Simulate processing
+    print(f"{file} Completed")
+
+
+def main():
+    start = time.time()
+
+    for file in files:
+        process_file(file)
+
+    end = time.time()
+
+    print("\nAll files processed")
+    print(f"Time Taken : {round(end-start,2)} seconds")
+
+
+if __name__ == "__main__":
+    main()
+Output
+Reading trade_day1.csv...
+trade_day1.csv Completed
+
+Reading trade_day2.csv...
+trade_day2.csv Completed
+
+Reading trade_day3.csv...
+trade_day3.csv Completed
+
+All files processed
+Time Taken : 6.01 seconds
+________________________________________
+2. Multiprocessing Pipeline (Parallel)
+Now each file is processed by a separate process.
+# multiprocessing_pipeline.py
+
+from multiprocessing import Pool
+import time
+
+files = ["trade_day1.csv", "trade_day2.csv", "trade_day3.csv"]
+
+
+def process_file(file):
+    print(f"Reading {file}...")
+    time.sleep(2)
+    print(f"{file} Completed")
+
+
+def main():
+
+    start = time.time()
+
+    with Pool(processes=3) as pool:
+        pool.map(process_file, files)
+
+    end = time.time()
+
+    print("\nAll files processed")
+    print(f"Time Taken : {round(end-start,2)} seconds")
+
+
+if __name__ == "__main__":
+    main()
+Output
+Reading trade_day1.csv...
+Reading trade_day2.csv...
+Reading trade_day3.csv...
+
+trade_day1.csv Completed
+trade_day2.csv Completed
+trade_day3.csv Completed
+
+All files processed
+Time Taken : 2.05 seconds
+________________________________________
+Visual Difference
+Single Processing
+Start
+  |
+  v
+File 1
+  |
+  v
+File 2
+  |
+  v
+File 3
+  |
+  v
+Finish
+Time:
+|----2s----|----2s----|----2s----|
+             Total = 6 seconds
+________________________________________
+Multiprocessing
+          File 1
+        /
+Start -- File 2
+        \
+          File 3
+              |
+              v
+           Finish
+Time:
+|----2s----|
+ All files processed together
+ Total = 2 seconds
+________________________________________
+Real-Life BSE Example
+Suppose every night BSE receives:
+trade_day1.csv
+trade_day2.csv
+trade_day3.csv
+Single Processing
+Read Day1
+↓
+Validate Day1
+↓
+Transform Day1
+↓
+Load Day1
+
+Then Day2
+
+Then Day3
+If each file takes 10 minutes:
+10 + 10 + 10 = 30 minutes
+Multiprocessing
+Three worker processes run simultaneously:
+Worker 1 → Day1
+Worker 2 → Day2
+Worker 3 → Day3
+All finish in approximately:
+≈10 minutes
+________________________________________
+Key Interview Point
+•	Single Processing: One CPU core executes one task at a time. Simpler but slower for independent tasks. 
+•	Multiprocessing: Multiple CPU cores execute independent tasks in parallel. Faster for CPU-intensive or independent workloads like processing many files simultaneously.
+
+
