@@ -1,0 +1,194 @@
+Step 1: Start Hadoop Services
+start-dfs.cmd
+start-yarn.cmd
+
+Verify:
+
+jps
+
+Expected output:
+
+NameNode
+DataNode
+ResourceManager
+NodeManager
+SecondaryNameNode
+Step 2: Check HDFS
+hdfs dfs -ls /
+
+or
+
+hadoop fs -ls /
+Step 3: Create a Directory in HDFS
+
+Create a folder called datasets
+
+hdfs dfs -mkdir /datasets
+
+Create nested folders
+
+hdfs dfs -mkdir -p /datasets/sales
+
+Verify
+
+hdfs dfs -ls /
+
+Output
+
+Found 1 items
+drwxr-xr-x   - user supergroup 0 2026-08-05 /datasets
+Step 4: Create a Local Dataset
+
+Suppose you have
+
+C:\Data\sales.csv
+
+Example
+
+ID,Product,Amount
+1,Laptop,50000
+2,Mouse,800
+3,Keyboard,1200
+4,Laptop,55000
+5,Mouse,900
+Step 5: Upload Dataset to HDFS
+hdfs dfs -put C:\Data\sales.csv /datasets/
+
+or
+
+hdfs dfs -copyFromLocal C:\Data\sales.csv /datasets/
+Step 6: Verify Upload
+hdfs dfs -ls /datasets
+
+Output
+
+sales.csv
+Step 7: View File Contents
+hdfs dfs -cat /datasets/sales.csv
+
+or
+
+hdfs dfs -head /datasets/sales.csv
+Step 8: Copy File Back to Local
+hdfs dfs -get /datasets/sales.csv C:\Output\
+
+or
+
+hdfs dfs -copyToLocal /datasets/sales.csv C:\Output\
+Step 9: Run a MapReduce Job
+
+We'll use the built-in Hadoop WordCount example.
+
+Assume the input file is
+
+sample.txt
+
+Upload it
+
+hdfs dfs -mkdir /input
+hdfs dfs -put C:\Data\sample.txt /input/
+
+Example data
+
+Hadoop is big data
+Hadoop uses HDFS
+HDFS stores big data
+Execute WordCount
+hadoop jar %HADOOP_HOME%\share\hadoop\mapreduce\hadoop-mapreduce-examples-*.jar wordcount /input /output
+
+If /output already exists, delete it first:
+
+hdfs dfs -rm -r /output
+Step 10: Check Output Folder
+hdfs dfs -ls /output
+
+Output
+
+part-r-00000
+_SUCCESS
+Step 11: View MapReduce Result
+hdfs dfs -cat /output/part-r-00000
+
+Output
+
+HDFS    1
+Hadoop  2
+big     2
+data    2
+is      1
+stores  1
+uses    1
+Step 12: Download the Result
+hdfs dfs -get /output C:\Results
+
+or
+
+hdfs dfs -copyToLocal /output C:\Results
+
+You will find
+
+C:\Results\output\
+        |_ part-r-00000
+        |_ _SUCCESS
+Useful HDFS Commands
+Command	Purpose
+hdfs dfs -mkdir /dir	Create directory
+hdfs dfs -mkdir -p /dir/subdir	Create nested directory
+hdfs dfs -ls /	List files
+hdfs dfs -put file /dir	Upload file
+hdfs dfs -copyFromLocal file /dir	Upload file
+hdfs dfs -cat file	View contents
+hdfs dfs -head file	First few lines
+hdfs dfs -tail file	Last few lines
+hdfs dfs -get file local	Download file
+hdfs dfs -copyToLocal file local	Download file
+hdfs dfs -rm file	Delete file
+hdfs dfs -rm -r folder	Delete directory
+hdfs dfs -du -h /	Show disk usage
+hdfs dfs -count /	Count files and directories
+hdfs dfs -mv src dest	Move or rename
+hdfs dfs -cp src dest	Copy within HDFS
+hdfs dfs -touchz file	Create empty file
+Complete Flow Diagram
+                 Local Machine
+
+        C:\Data\sales.csv
+                 |
+                 |
+      hdfs dfs -put sales.csv /datasets
+                 |
+                 V
+       ------------------------
+       |        HDFS          |
+       |----------------------|
+       | /datasets            |
+       |    sales.csv         |
+       ------------------------
+                 |
+                 |
+      MapReduce Job (WordCount)
+                 |
+                 V
+       ------------------------
+       |       /output         |
+       |----------------------|
+       | part-r-00000         |
+       | _SUCCESS             |
+       ------------------------
+                 |
+                 |
+     hdfs dfs -cat /output/part-r-00000
+                 |
+                 |
+     hdfs dfs -get /output C:\Results
+                 |
+                 V
+        Local Result Files
+
+This sequence demonstrates the full lifecycle:
+
+Create an HDFS directory.
+Upload a dataset from the local file system.
+Verify and inspect the uploaded data.
+Execute a MapReduce job on the data stored in HDFS.
+Retrieve and view the processed output from HDFS, either directly with -cat or by downloading it back to the local machine.
