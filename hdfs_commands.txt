@@ -28,6 +28,13 @@ DataNode
 ResourceManager
 NodeManager
 SecondaryNameNode
+## verify URLS are working
+name node
+http://localhost:9870 
+yarn
+http://localhost:8088
+history
+http://localhost:8088
 Step 2: Check HDFS
 hdfs dfs -ls /
 
@@ -110,6 +117,9 @@ Hadoop uses HDFS
 HDFS stores big data
 Execute WordCount
 hadoop jar %HADOOP_HOME%\share\hadoop\mapreduce\hadoop-mapreduce-examples-*.jar wordcount /input /output
+
+or 
+hadoop jar $HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-examples-*.jar wordcount /input/sample.txt /output
 
 If /output already exists, delete it first:
 
