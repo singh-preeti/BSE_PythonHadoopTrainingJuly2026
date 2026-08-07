@@ -1,0 +1,17 @@
+Step 1 : make dir
+hdfs dfs -mkdir -p /usr/test
+Step 2 : put data to hdfs 
+echo "hello hadoop hello docker hello hadoop" | hdfs dfs -put - /usr/test/input.txt
+     or 
+hdfs dfs -put /path  /usr/test
+Step 3 : to view the content 
+hdfs dfs -cat /usr/test/input.txt
+
+Step 4: find the jar file
+ls /opt/hadoop-3.2.1/share/hadoop/mapreduce/
+
+Step 5: check the wordcount
+yarn jar /opt/hadoop-3.2.1/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.2.1.jar wordcount /usr/test/input.txt /usr/test/output
+
+Step 6: view the content after mapreduce operation
+hdfs dfs -cat /usr/test/output/part-r-00000
