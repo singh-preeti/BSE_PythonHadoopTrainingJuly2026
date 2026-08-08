@@ -1,0 +1,20 @@
+Step 1 — Create HDFS directory
+hdfs dfs -mkdir -p /trading/input
+Step 2 — Upload dataset
+hdfs dfs -put /dirpath/trades.csv /trading/input/
+Step 3 — Verify
+hdfs dfs -ls /trading/input
+step 4 - make reducer.py and mapper.py  executable
+chmod +x mapper.py reducer.py
+step 5 - remove output directory if its there
+hdfs dfs -rm -r /usr/bse_demo/output
+Step 6 — Execute MapReduce
+hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-*.jar \
+-input /trading/input/trades.csv \
+-output /trading/output \
+-mapper mapper.py \
+-reducer reducer.py \
+-file mapper.py \
+-file reducer.py
+Step 7 — View result
+hdfs dfs -cat /trading/output/part-00000
