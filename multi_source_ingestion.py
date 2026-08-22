@@ -88,5 +88,65 @@ payments_df.write \
 print("Parquet source created successfully.")
 
 
+# ============================================================
+# 5. READ CSV SOURCE
+# ============================================================
+
+print("Reading CSV Data")
+
+customers = spark.read \
+    .option("header", "true") \
+    .option("inferSchema", "true") \
+    .csv("data/customers")
+
+customers.show()
+
+customers.printSchema()
+
+
+# ============================================================
+# 6. READ JSON SOURCE
+# ============================================================
+
+
+print("Reading JSON Data")
+
+
+orders = spark.read \
+    .option("inferSchema", "true") \
+    .json("data/orders")
+
+orders.show()
+
+orders.printSchema()
+
+
+# ============================================================
+# 7. READ PARQUET SOURCE
+# ============================================================
+
+
+print("Reading Parquet Data")
+
+
+payments = spark.read \
+    .parquet("data/payments")
+
+payments.show()
+
+payments.printSchema()
+
+
+# ============================================================
+# 8. REGISTER DATAFRAMES AS SQL TABLES
+# ============================================================
+
+customers.createOrReplaceTempView("customers")
+orders.createOrReplaceTempView("orders")
+payments.createOrReplaceTempView("payments")
+
+print("\nSQL temporary views created successfully.")
+
+
 
 
