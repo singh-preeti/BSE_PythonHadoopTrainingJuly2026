@@ -214,4 +214,30 @@ customer_summary = spark.sql("""
         total_amount DESC
 """)
 
-customer_summary.show()
+customer_summary.show() 
+
+
+
+# ============================================================
+# 12. JOIN ALL THREE SOURCES
+# ============================================================
+
+print("JOIN ALL DATA SOURCES")
+
+
+combined_data = spark.sql("""
+    SELECT
+        c.customerId,
+        c.name,
+        o.orderId,
+        o.amount AS order_amount,
+        p.status AS payment_status
+    FROM customers c
+    INNER JOIN orders o
+        ON c.customerId = o.customerId
+    INNER JOIN payments p
+        ON o.orderId = p.paymentId
+""")
+
+combined_data.show()
+
