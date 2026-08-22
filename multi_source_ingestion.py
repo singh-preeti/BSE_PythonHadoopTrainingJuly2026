@@ -295,5 +295,24 @@ business_report = spark.sql("""
 
 business_report.show()
 
+# ============================================================
+# 15. WRITE FINAL RESULT TO PARQUET
+# ============================================================
+
+business_report.write \
+    .mode("overwrite") \
+    .parquet("output/customer_business_report")
+
+print("\nFinal report saved to:")
+print("output/customer_business_report")
+
+
+# ============================================================
+# 16. STOP SPARK
+# ============================================================
+
+spark.stop()
+
+print(" PROCESS COMPLETED SUCCESSFULLY")
 
 
