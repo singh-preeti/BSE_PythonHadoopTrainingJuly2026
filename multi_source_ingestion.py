@@ -64,4 +64,29 @@ orders_df.write \
 
 print("JSON source created successfully.")
 
+# ============================================================
+# 4. CREATE SAMPLE PARQUET DATA
+# ============================================================
+
+payments_data = [
+    (1, "101", 5000, "SUCCESS"),
+    (2, "102", 3500, "SUCCESS"),
+    (3, "101", 2500, "SUCCESS"),
+    (4, "103", 7000, "SUCCESS"),
+    (5, "104", 4500, "PENDING")
+]
+
+payments_df = spark.createDataFrame(
+    payments_data,
+    ["paymentId", "customerId", "amount", "status"]
+)
+
+payments_df.write \
+    .mode("overwrite") \
+    .parquet("data/payments")
+
+print("Parquet source created successfully.")
+
+
+
 
