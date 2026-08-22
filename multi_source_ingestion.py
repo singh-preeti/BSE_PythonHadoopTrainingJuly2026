@@ -264,6 +264,36 @@ successful_payments = spark.sql("""
     WHERE p.status = 'SUCCESS'
 """)
 
-successful_payments.show()
+successful_payments.show() 
+
+
+
+# ============================================================
+# 14. FINAL BUSINESS REPORT
+# ============================================================
+
+print("FINAL BUSINESS REPORT")
+
+business_report = spark.sql("""
+    SELECT
+        c.customerId,
+        c.name,
+        COUNT(o.orderId) AS total_orders,
+        SUM(o.amount) AS total_spent
+    FROM customers c
+    JOIN orders o
+        ON c.customerId = o.customerId
+    JOIN payments p
+        ON o.orderId = p.paymentId
+    WHERE p.status = 'SUCCESS'
+    GROUP BY
+        c.customerId,
+        c.name
+    ORDER BY
+        total_spent DESC
+""")
+
+business_report.show()
+
 
 
