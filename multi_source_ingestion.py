@@ -239,5 +239,31 @@ combined_data = spark.sql("""
         ON o.orderId = p.paymentId
 """)
 
-combined_data.show()
+combined_data.show() 
+
+
+
+# ============================================================
+# 13. FIND SUCCESSFUL PAYMENTS
+# ============================================================
+
+print(" SUCCESSFUL PAYMENTS")
+
+successful_payments = spark.sql("""
+    SELECT
+        c.customerId,
+        c.name,
+        o.orderId,
+        o.amount,
+        p.status
+    FROM customers c
+    JOIN orders o
+        ON c.customerId = o.customerId
+    JOIN payments p
+        ON o.orderId = p.paymentId
+    WHERE p.status = 'SUCCESS'
+""")
+
+successful_payments.show()
+
 
