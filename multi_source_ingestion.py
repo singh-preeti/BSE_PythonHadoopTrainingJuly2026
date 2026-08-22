@@ -169,5 +169,26 @@ result.show()
 print("\nSQL temporary views created successfully.")
 
 
+# ============================================================
+# 10. JOIN CUSTOMER + ORDER DATA
+# ============================================================
+
+print("       CUSTOMER + ORDER JOIN")
+
+
+customer_orders = spark.sql("""
+    SELECT
+        c.customerId,
+        c.name,
+        o.orderId,
+        o.amount
+    FROM customers c
+    INNER JOIN orders o
+        ON c.customerId = o.customerId
+""")
+
+customer_orders.show()
+
+
 
 
