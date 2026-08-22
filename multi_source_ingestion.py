@@ -143,7 +143,28 @@ payments.printSchema()
 
 customers.createOrReplaceTempView("customers")
 orders.createOrReplaceTempView("orders")
-payments.createOrReplaceTempView("payments")
+payments.createOrReplaceTempView("payments") 
+
+# ============================================================
+# 9. BASIC SPARK SQL QUERY
+# ============================================================
+
+
+print(" BASIC SPARK SQL QUERY")
+
+
+result = spark.sql("""
+    SELECT
+        customerId,
+        name,
+        age
+    FROM customers
+    WHERE age >= 30
+""")
+
+result.show()
+
+
 
 print("\nSQL temporary views created successfully.")
 
