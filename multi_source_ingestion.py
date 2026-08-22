@@ -192,3 +192,26 @@ customer_orders.show()
 
 
 
+# ============================================================
+# 11. CUSTOMER ORDER SUMMARY
+# ============================================================
+
+print("       CUSTOMER ORDER SUMMARY")
+
+customer_summary = spark.sql("""
+    SELECT
+        c.customerId,
+        c.name,
+        COUNT(o.orderId) AS total_orders,
+        SUM(o.amount) AS total_amount
+    FROM customers c
+    INNER JOIN orders o
+        ON c.customerId = o.customerId
+    GROUP BY
+        c.customerId,
+        c.name
+    ORDER BY
+        total_amount DESC
+""")
+
+customer_summary.show()
