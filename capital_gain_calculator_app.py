@@ -84,3 +84,84 @@ print(f"  Average count per ticker: {skew_stats['avg_count']:.0f}")
 print(f"  Max count (hottest ticker): {skew_stats['max_count']}")
 print(f"  Min count (coldest ticker): {skew_stats['min_count']}")
 print(f"  Skew ratio (max/min): {skew_stats['max_count']/skew_stats['min_count']:.1f}x")
+
+
+
+# ============================================================================
+# STEP 3: Separate Buys and Sells with FIFO Ordering
+# ============================================================================
+print("\n[3/8] Separating transactions and applying FIFO ordering...")
+
+# Define FIFO window: partition by ticker and trader, order by date
+# traid_id  ticker  transaction
+# t1         tcs     buy
+# t1         hdfc    sell
+window_fifo = Window.partitionBy("ticker", "trader_id").orderBy("date")
+#transactions.orderBy("ticker","trader_id","date")
+
+
+# group by vs window
+buys = (transactions
+    .filter(col("transaction_type") == "BUY")
+    .withColumn("buy_seq", row_number().over(window_fifo))
+)
+
+sells = (transactions
+    .filter(col("transaction_type") == "SELL")
+    .withColumn("sell_seq", row_number().over(window_fifo))
+)
+
+print(f"[OK] Buy transactions: {buys.count()}")
+print(f"[OK] Sell transactions: {sells.count()}")
+
+# ============================================================================
+# STEP 4: FIFO Join (Match Sells to Buys)
+# ============================================================================
+print("\n[4/8] Performing FIFO join (matching sells to buys)...")
+
+# This is the complex join from the guide
+# Each sell is matched with ALL preceding buys for FIFO calculation
+# Rename columns to avoid conflicts
+sells_renamed = sells.select(
+    col("ticker").alias("s_ticker"),
+    col("trader_id").alias("s_trader_id"),
+    col("date").alias("sell_date"),
+    col("price").alias("sell_price"),
+    col("sell_seq").alias("s_sell_seq")
+)
+
+buys_renamed = buys.select(
+    col("ticker").alias("b_ticker"),
+    col("trader_id").alias("b_trader_id"),
+    col("date").alias("buy_date"),
+    col("price").alias("buy_price"),
+    col("quantity").alias("buy_qty"),
+    col("buy_seq").alias("b_buy_seq")
+)
+
+capital_gains = (sells_renamed
+    .join(
+        buys_renamed,
+        on=[
+            col("s_ticker") == col("b_ticker"),
+            col("s_trader_id") == col("b_trader_id"),
+            col("b_buy_seq") <= col("s_sell_seq")
+        ],
+        how="inner"
+    )
+    .select(
+        col("s_ticker").alias("ticker"),
+        col("s_trader_id").alias("trader_id"),
+        col("buy_date"),
+        col("sell_date"),
+        col("buy_price"),
+        col("sell_price"),
+        col("buy_qty").alias("quantity"),
+        (col("sell_price") - col("buy_price")).alias("gain_per_share"),
+        ((col("sell_price") - col("buy_price")) * col("buy_qty")).alias("total_gain")
+    )
+)
+
+print(f"[OK] Capital gain matches created: {capital_gains.count()}")
+print("\nSample gains (first 10):")
+capital_gains.show(10, truncate=False)
