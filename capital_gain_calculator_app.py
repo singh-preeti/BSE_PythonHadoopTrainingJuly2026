@@ -211,6 +211,38 @@ result = result.withColumn(
 
 print("[OK] Tax calculations completed (using native SQL functions, not UDFs)")
 
+# ============================================================================
+# STEP 7: Add Window Functions for Analysis
+# ============================================================================
+print("\n[7/8] Adding window functions for statistics...")
+
+# Define window functions
+trader_window = Window.partitionBy("trader_id").orderBy("sell_date")
+stock_window = Window.partitionBy("ticker").orderBy("sell_date")
+rank_window = Window.partitionBy("trader_id").orderBy(col("total_gain").desc())
+
+result = result.withColumn(
+    "cumulative_gain_trader",
+    sum("net_gain").over(trader_window)
+).withColumn(
+    "rank_by_gain_trader",
+    rank().over(rank_window)
+).withColumn(
+    "prev_trade_gain",
+    lag("total_gain").over(trader_window)
+).withColumn(
+    "moving_avg_5_trades",
+    avg("total_gain").over(
+        trader_window.rowsBetween(-5, 0)
+    )
+)
+
+print("[OK] Window functions applied")
+print("  - Cumulative gains by trader")
+print("  - Rank of gains by trader")
+print("  - Previous trade comparison")
+print("  - Moving average (5 trades)")
+
 
 
 
