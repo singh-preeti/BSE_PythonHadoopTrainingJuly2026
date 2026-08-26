@@ -165,3 +165,52 @@ capital_gains = (sells_renamed
 print(f"[OK] Capital gain matches created: {capital_gains.count()}")
 print("\nSample gains (first 10):")
 capital_gains.show(10, truncate=False)
+
+
+# ============================================================================
+# STEP 5: Enrich with Trader, Stock, and Tax Info (Using Broadcast Joins)
+# ============================================================================
+print("\n[5/8] Enriching data with broadcast joins...")
+
+result = (capital_gains
+    .join(broadcast(traders.select("trader_id", "trader_name", "country")), "trader_id")
+    .join(broadcast(stocks.select("ticker", "company_name", "sector")), "ticker")
+    .join(broadcast(tax_rules.select("country", "long_term_rate", "short_term_rate")), "country")
+)
+result.show();
+print("[OK] Broadcast joins completed")
+
+# ============================================================================
+# STEP 6: Calculate Holding Period and Tax Liability (SQL Functions - No UDFs!)
+# ============================================================================
+print("\n[6/8] Calculating holding period and tax liability...")
+
+holding_period_days = datediff(col("sell_date"), col("buy_date"))
+
+result = result.withColumn(
+    "holding_period_days",
+    holding_period_days
+).withColumn(
+    "is_long_term",
+    col("holding_period_days") >= 365
+).withColumn(
+    "tax_rate",
+    when(
+        col("holding_period_days") >= 365,
+        col("long_term_rate")
+    ).otherwise(
+        col("short_term_rate")
+    )
+).withColumn(
+    "tax_liability",
+    col("total_gain") * col("tax_rate")
+).withColumn(
+    "net_gain",
+    col("total_gain") - col("tax_liability")
+)
+
+print("[OK] Tax calculations completed (using native SQL functions, not UDFs)")
+
+
+
+
