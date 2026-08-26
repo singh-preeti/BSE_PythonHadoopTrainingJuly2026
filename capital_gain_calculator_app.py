@@ -245,4 +245,86 @@ print("  - Moving average (5 trades)")
 
 
 
+# ============================================================================
+# STEP 8: Generate Reports
+# ============================================================================
+print("\n[8/8] Generating reports...")
+
+# Report 1: By Trader
+print("\n" + "="*80)
+print("REPORT 1: Capital Gains Summary by Trader")
+print("="*80)
+
+trader_summary = (result
+    .groupBy("trader_name", "country")
+    .agg(
+        count("*").alias("total_trades"),
+        sum("total_gain").alias("gross_gain"),
+        sum("tax_liability").alias("total_tax"),
+        sum("net_gain").alias("net_gain"),
+        avg("holding_period_days").alias("avg_holding_days"),
+        avg("tax_rate").alias("avg_tax_rate")
+    )
+    .withColumn("gross_gain", round(col("gross_gain"), 2))
+    .withColumn("total_tax", round(col("total_tax"), 2))
+    .withColumn("net_gain", round(col("net_gain"), 2))
+    .withColumn("avg_holding_days", round(col("avg_holding_days"), 0))
+    .withColumn("avg_tax_rate", round(col("avg_tax_rate"), 4))
+    .orderBy(col("net_gain").desc())
+)
+
+trader_summary.show(truncate=False)
+
+# Report 2: By Stock
+print("\n" + "="*80)
+print("REPORT 2: Capital Gains Summary by Stock")
+print("="*80)
+
+stock_summary = (result
+    .groupBy("ticker", "company_name", "sector")
+    .agg(
+        count("*").alias("total_trades"),
+        sum("total_gain").alias("gross_gain"),
+        sum("tax_liability").alias("total_tax"),
+        sum("net_gain").alias("net_gain"),
+        avg("gain_per_share").alias("avg_gain_per_share")
+    )
+    .withColumn("gross_gain", round(col("gross_gain"), 2))
+    .withColumn("total_tax", round(col("total_tax"), 2))
+    .withColumn("net_gain", round(col("net_gain"), 2))
+    .withColumn("avg_gain_per_share", round(col("avg_gain_per_share"), 2))
+    .orderBy(col("net_gain").desc())
+)
+
+stock_summary.show(truncate=False)
+
+# Report 3: Detailed Gain Report
+print("\n" + "="*80)
+print("REPORT 3: Detailed Capital Gains Report (Top 15 Gains)")
+print("="*80)
+
+detailed_report = (result
+    .select(
+        "ticker",
+        "company_name",
+        "trader_name",
+        "buy_date",
+        "sell_date",
+        "holding_period_days",
+        "is_long_term",
+        "buy_price",
+        "sell_price",
+        "gain_per_share",
+        "quantity",
+        col("total_gain").cast("decimal(10,2)").alias("total_gain"),
+        col("tax_rate").cast("decimal(5,4)").alias("tax_rate"),
+        col("tax_liability").cast("decimal(10,2)").alias("tax_liability"),
+        col("net_gain").cast("decimal(10,2)").alias("net_gain")
+    )
+    .orderBy(col("net_gain").desc())
+)
+
+detailed_report.show(15, truncate=False)
+
+
 
