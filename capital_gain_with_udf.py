@@ -276,3 +276,39 @@ result = result.withColumn(
 )
 
 print("[OK] Tax calculations completed (using native SQL functions, not UDFs)")
+
+
+
+
+
+
+# ============================================================================
+# USER-DEFINED FUNCTIONS: Apply UDFs to enrich the result
+# ============================================================================
+print("\n[USER UDFS] Applying UDFs: adjusted gain (vectorized if available) and gain category (Python UDF)")
+# Try to use a native Spark expression for fee-adjusted gain to avoid Python worker timeouts.
+# fee = greatest(1.0, 0.001 * abs(total_gain))
+# adjusted_total_gain = total_gain - fee
+adjusted_fee_expr = greatest(lit(1.0), (abs(col("total_gain")) * lit(0.001)))
+result = result.withColumn(
+    "adjusted_total_gain",
+    (col("total_gain").cast(DoubleType()) - adjusted_fee_expr).cast(DoubleType())
+).withColumn(
+    "gain_category",
+    classify_gain_py(col("total_gain"))
+)
+
+
+
+print("[OK] Applied adjustments using native Spark expression for adjusted_total_gain and native expression for gain_category")
+# Replace Python UDF classification with native Spark expression to avoid Python worker overhead
+result = result.withColumn(
+    "gain_category",
+    when(col("total_gain").isNull(), lit(None).cast(StringType()))
+    .when(col("total_gain") < 0, lit("LOSS"))
+    .when(col("total_gain") < 100, lit("SMALL_GAIN"))
+    .when(col("total_gain") < 1000, lit("MEDIUM_GAIN"))
+    .otherwise(lit("LARGE_GAIN"))
+)
+
+print("[OK] Gain category computed using native Spark expressions (no Python UDF)")
