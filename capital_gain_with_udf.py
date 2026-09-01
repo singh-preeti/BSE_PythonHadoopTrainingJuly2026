@@ -154,4 +154,74 @@ print(f"[OK] Buy transactions after filter+select: {buys.count()}")
 print(f"[OK] Sell transactions after filter+select: {sells.count()}")
 
 
+# ============================================================================
+# STEP 4: NARROW + WIDE Transformations - FIFO Window Ordering
+# ============================================================================
+print("\n[4/10] Applying Window Functions...")
+print("  [WIDE] Window with partitionBy: Shuffles to group by (ticker, trader_id)")
+print("  [NARROW] Window with orderBy: Orders within each partition (no shuffle)")
+print("  [NARROW] row_number(): Assigns numbers within groups")
+
+# WIDE: Partition requires shuffle to group by ticker and trader_id
+# NARROW: Order by date happens within each partition after shuffle
+window_fifo = Window.partitionBy("ticker", "trader_id").orderBy("date")
+
+buys_with_seq = buys.withColumn("buy_seq", row_number().over(window_fifo))
+sells_with_seq = sells.withColumn("sell_seq", row_number().over(window_fifo))
+
+print(f"[OK] FIFO sequences assigned")
+
+# ============================================================================
+# STEP 5: WIDE Transformation - Complex Join (FIFO Matching)
+# ============================================================================
+print("\n[5/10] Performing FIFO join...")
+print("  [WIDE] join: Complex join requires shuffle (FIFO matching)")
+print("  Strategy: Rename columns to avoid conflicts, then join on conditions")
+
+# Rename columns to avoid conflicts
+sells_renamed = sells_with_seq.select(
+    col("ticker").alias("s_ticker"),
+    col("trader_id").alias("s_trader_id"),
+    col("date").alias("sell_date"),
+    col("price").alias("sell_price"),
+    col("sell_seq").alias("s_sell_seq")
+)
+
+buys_renamed = buys_with_seq.select(
+    col("ticker").alias("b_ticker"),
+    col("trader_id").alias("b_trader_id"),
+    col("date").alias("buy_date"),
+    col("price").alias("buy_price"),
+    col("quantity").alias("buy_qty"),
+    col("buy_seq").alias("b_buy_seq")
+)
+
+# WIDE: Join requires shuffle to match records across partitions
+capital_gains = (sells_renamed
+    .join(
+        buys_renamed,
+        on=[
+            col("s_ticker") == col("b_ticker"),
+            col("s_trader_id") == col("b_trader_id"),
+            col("b_buy_seq") <= col("s_sell_seq")
+        ],
+        how="inner"
+    )
+    .select(
+        col("s_ticker").alias("ticker"),
+        col("s_trader_id").alias("trader_id"),
+        col("buy_date"),
+        col("sell_date"),
+        col("buy_price"),
+        col("sell_price"),
+        col("buy_qty").alias("quantity"),
+        (col("sell_price") - col("buy_price")).alias("gain_per_share"),
+        ((col("sell_price") - col("buy_price")) * col("buy_qty")).alias("total_gain")
+    )
+)
+
+print(f"[OK] Capital gain matches created: {capital_gains.count()}")
+print("\nSample gains (first 10):")
+capital_gains.show(10, truncate=False)
+
 
