@@ -118,6 +118,40 @@ print(f"\nSkew Statistics:")
 print(f"  Average count per ticker: {skew_stats['avg_count']:.0f}")
 print(f"  Max count (hottest ticker): {skew_stats['max_count']}")
 print(f"  Min count (coldest ticker): {skew_stats['min_count']}")
-print(f"  Skew ratio (max/min): {skew_stats['max_count']/skew_stats['min_count']:.1f}x")
+print(f"  Skew ratio (max/min): {skew_stats['max_count']/skew_stats['min_count']:.1f}x") 
+
+
+
+# ============================================================================
+# STEP 3: NARROW Transformations - Filter and Select
+# ============================================================================
+print("\n[3/10] Applying NARROW transformations (filter & select)...")
+print("  [NARROW] filter: Removes rows locally, no shuffle")
+print("  [NARROW] select: Projects columns, no shuffle")
+print("  [NARROW] withColumn: Adds/modifies columns, can be pipelined")
+
+# NARROW: Filter transactions locally
+buys_filtered = transactions.filter(col("transaction_type") == "BUY")
+sells_filtered = transactions.filter(col("transaction_type") == "SELL")
+
+# NARROW: Select only needed columns (Projection Pruning)
+buys = buys_filtered.select(
+    col("ticker"),
+    col("trader_id"),
+    col("date"),
+    col("price"),
+    col("quantity")
+)
+
+sells = sells_filtered.select(
+    col("ticker"),
+    col("trader_id"),
+    col("date"),
+    col("price")
+)
+
+print(f"[OK] Buy transactions after filter+select: {buys.count()}")
+print(f"[OK] Sell transactions after filter+select: {sells.count()}")
+
 
 
