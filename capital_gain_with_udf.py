@@ -225,3 +225,54 @@ print("\nSample gains (first 10):")
 capital_gains.show(10, truncate=False)
 
 
+
+# ============================================================================
+# STEP 6: NARROW + WIDE - Broadcast Joins vs Regular Joins
+# ============================================================================
+print("\n[6/10] Enriching data with broadcast joins...")
+print("  [NARROW-ish] broadcast join: No shuffle for broadcasted table")
+print("  Key insight: Small tables broadcasted to all executors")
+print("  vs WIDE: Regular join would shuffle both large tables")
+
+# Optimize by using broadcast for small dimension tables
+result = (capital_gains
+    .join(broadcast(traders.select("trader_id", "trader_name", "country")), "trader_id")
+    .join(broadcast(stocks.select("ticker", "company_name", "sector")), "ticker")
+    .join(broadcast(tax_rules.select("country", "long_term_rate", "short_term_rate")), "country")
+)
+
+print("[OK] Broadcast joins completed (no shuffle for small tables)")
+
+# ============================================================================
+# STEP 7: NARROW Transformations - Calculations with withColumn
+# ============================================================================
+print("\n[7/10] Calculating holding period and tax liability...")
+print("  [NARROW] withColumn (datediff): Local calculation, no shuffle")
+print("  [NARROW] when/otherwise: Conditional logic, no shuffle")
+print("  [NARROW] column arithmetic: Math operations, can be pipelined")
+
+holding_period_days = datediff(col("sell_date"), col("buy_date"))
+
+result = result.withColumn(
+    "holding_period_days",
+    holding_period_days
+).withColumn(
+    "is_long_term",
+    col("holding_period_days") >= 365
+).withColumn(
+    "tax_rate",
+    when(
+        col("holding_period_days") >= 365,
+        col("long_term_rate")
+    ).otherwise(
+        col("short_term_rate")
+    )
+).withColumn(
+    "tax_liability",
+    col("total_gain") * col("tax_rate")
+).withColumn(
+    "net_gain",
+    col("total_gain") - col("tax_liability")
+)
+
+print("[OK] Tax calculations completed (using native SQL functions, not UDFs)")
