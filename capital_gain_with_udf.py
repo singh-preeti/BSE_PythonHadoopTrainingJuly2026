@@ -60,4 +60,28 @@ print(f"[OK] Transactions: {transactions.count()} records")
 print(f"[OK] Traders: {traders.count()} records")
 print(f"[OK] Stocks: {stocks.count()} records")
 print(f"[OK] Tax Rules: {tax_rules.count()} records")
-print(f"[OK] Market Prices: {market_prices.count()} records")
+print(f"[OK] Market Prices: {market_prices.count()} records") 
+
+
+import pandas as pd
+from pyspark.sql.functions import pandas_udf
+from pyspark.sql.types import StringType
+
+# Regular (scalar) Python UDF - easy to read but slower at scale
+@udf(StringType())
+def classify_gain_py(total_gain):
+    if total_gain is None:
+        return None
+    try:
+        g = float(total_gain)
+    except Exception:
+        return None
+    if g < 0:
+        return "LOSS"
+    if g < 100:
+        return "SMALL_GAIN"
+    if g < 1000:
+        return "MEDIUM_GAIN"
+    return "LARGE_GAIN"
+
+  #classify_gain_udf = udf(classify_gain_py, StringType())
