@@ -85,3 +85,39 @@ def classify_gain_py(total_gain):
     return "LARGE_GAIN"
 
   #classify_gain_udf = udf(classify_gain_py, StringType())
+
+
+
+
+@pandas_udf(DoubleType())
+def adjusted_gain_pandas_udf(total_gain: pd.Series) -> pd.Series:
+    # Compute fee as max(1.0, 0.001 * abs(total_gain))
+    # This models a per-trade commission or fee based on trade size
+    fee = (total_gain.abs() * 0.001).fillna(0.0)
+    final_fee = fee.clip(lower=1.0)
+    return total_gain - final_fee
+
+
+# ============================================================================
+# STEP 2: Data Skewness Analysis (WIDE - GroupBy Shuffle)
+# ============================================================================
+print("\n[2/10] Analyzing data skewness...")
+print("  [WIDE] groupBy + count: Requires shuffle to aggregate by ticker")
+
+ticker_distribution = transactions.groupBy("ticker").count().orderBy(col("count").desc())
+print("\nTicker Distribution:")
+ticker_distribution.show()
+
+skew_stats = ticker_distribution.agg(
+    avg("count").alias("avg_count"),
+    max("count").alias("max_count"),
+    min("count").alias("min_count")
+).collect()[0]
+
+print(f"\nSkew Statistics:")
+print(f"  Average count per ticker: {skew_stats['avg_count']:.0f}")
+print(f"  Max count (hottest ticker): {skew_stats['max_count']}")
+print(f"  Min count (coldest ticker): {skew_stats['min_count']}")
+print(f"  Skew ratio (max/min): {skew_stats['max_count']/skew_stats['min_count']:.1f}x")
+
+
